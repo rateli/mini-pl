@@ -2,7 +2,7 @@
 
 Source: https://www.cs.helsinki.fi/u/vihavain/k16/Compilers/project/miniplsyntax_2016.html
 
-## Context-free grammar
+## Context-free grammar (BNF)
 
 ```
 <prog>   ::=  <stmts>

@@ -1,0 +1,5 @@
+package minipl
+
+class Parser {
+
+}
