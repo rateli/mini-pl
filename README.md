@@ -37,15 +37,17 @@ int, string and bool
 
 ## Available operators
 
+```
   "+" : (int, int) -> int            // integer addition
   "+" : (string, string) -> string   // string concatenation
   "-" : (int, int) -> int            // integer subtraction
   "*" : (int, int) -> int            // integer multiplication
   "/" : (int, int) -> int            // integer division
   "&" : (bool, bool) -> bool         // logical and
-  "!" : (bool) -> bool               // logical not
+  "!" : (bool) -> bool               // logical not (unary)
   "=" : (T, T) -> bool               // equality comparison
   "<" : (T, T) -> bool               // less-than comparison
+```
 
 
 ## Sample programs
