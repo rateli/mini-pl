@@ -14,6 +14,12 @@ case class VariableAssignment(name: String, value: Statement) extends Statement
 
 case class VariableDeclarationWithAssignment(name: String, varType: String, value: Expression) extends Statement
 
+case class ReadOp(name: String) extends Statement
+
+case class PrintOp(value: Expression) extends Statement
+
+case class AssertOp(expr: Expression) extends Statement
+
 sealed trait Expression
 
 case class UnaryNot(expr: Expression) extends Expression
@@ -26,7 +32,7 @@ case class IntLiteral(value: Int) extends Expression
 
 case class StringLiteral(value: String) extends Expression
 
-case class VariableRef(value: String) extends Expression
+case class VariableRef(name: String) extends Expression
 
 object Parser extends RegexParsers {
 
@@ -95,10 +101,10 @@ object Parser extends RegexParsers {
       value => StringLiteral(value)
     }
 
-  def readOp: Parser[Statement] = "read " ~ varRef ^^ (_ => NoOp())
+  def readOp: Parser[Statement] = "read " ~> varRef ^^ (ref => ReadOp(ref.name))
 
-  def printOp: Parser[Statement] = "print " ~ expr ^^ (_ => NoOp())
+  def printOp: Parser[Statement] = "print " ~> expr ^^ (e => PrintOp(e))
 
-  def assertOp: Parser[Statement] = "assert " ~ expr ^^ (_ => NoOp())
+  def assertOp: Parser[Statement] = "assert " ~> expr ^^ (e => AssertOp(e))
 
 }
