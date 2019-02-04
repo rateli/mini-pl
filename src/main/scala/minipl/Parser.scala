@@ -10,9 +10,11 @@ case class NoOp() extends Statement
 
 case class VariableDeclaration(name: String, varType: String) extends Statement
 
-case class VariableAssignment(name: String, value: Statement) extends Statement
+case class VariableAssignment(name: String, value: Expression) extends Statement
 
 case class VariableDeclarationWithAssignment(name: String, varType: String, value: Expression) extends Statement
+
+case class ForLoop(loopVar: String, start: Expression, end: Expression, body: List[Statement]) extends Statement
 
 case class ReadOp(name: String) extends Statement
 
@@ -52,7 +54,8 @@ object Parser extends RegexParsers {
 
   def minipl: Parser[List[Statement]] = rep1(statement)
 
-  def statement: Parser[Statement] = (declaration ||| declarationWithAssignment ||| readOp) <~ ";"
+  def statement: Parser[Statement] =
+    (declaration ||| declarationWithAssignment ||| assignment ||| forLoop ||| readOp ||| printOp ||| assertOp) <~ ";"
 
   def declaration: Parser[Statement] =
     "var" ~> varRef ~ ":" ~ varType ^^ {
@@ -63,6 +66,10 @@ object Parser extends RegexParsers {
     "var" ~> varRef ~ ":" ~ varType ~ ":=" ~ expr ^^ {
       case VariableRef(vName) ~ _ ~ vType ~ _ ~ vValue => VariableDeclarationWithAssignment(vName, vType, vValue)
     }
+
+  def assignment: Parser[Statement] = varRef ~ ":=" ~ expr ^^ {
+    case ref ~ _ ~ value => VariableAssignment(ref.name, value)
+  }
 
   def expr: Parser[Expression] = operand ||| unaryNot ||| binaryExpr
 
@@ -92,13 +99,18 @@ object Parser extends RegexParsers {
     }
 
   def intLiteral: Parser[IntLiteral] =
-    """[1-9][0-9]*""".r ^^ (i => i.toInt) ^^ {
+    """0|([1-9][0-9]*)""".r ^^ (i => i.toInt) ^^ {
       value => IntLiteral(value)
     }
 
   def stringLiteral: Parser[StringLiteral] =
     """\".*\"""".r ^^ {
       value => StringLiteral(value)
+    }
+
+  def forLoop: Parser[Statement] =
+    "for" ~> varRef ~ "in" ~ expr ~ ".." ~ expr ~ "do" ~ rep(statement) <~ "end for" ^^ {
+      case loopVar ~ _ ~ start ~ _ ~ end ~ _ ~ body => ForLoop(loopVar.name, start, end, body)
     }
 
   def readOp: Parser[Statement] = "read " ~> varRef ^^ (ref => ReadOp(ref.name))
