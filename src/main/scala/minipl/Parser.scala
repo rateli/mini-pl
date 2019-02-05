@@ -6,13 +6,9 @@ final case class MiniPLSyntaxError(msg: String) extends Exception
 
 sealed trait Statement
 
-case class NoOp() extends Statement
-
-case class VariableDeclaration(name: String, varType: String) extends Statement
+case class VariableDeclaration(name: String, varType: String, value: Option[Expression]) extends Statement
 
 case class VariableAssignment(name: String, value: Expression) extends Statement
-
-case class VariableDeclarationWithAssignment(name: String, varType: String, value: Expression) extends Statement
 
 case class ForLoop(loopVar: String, start: Expression, end: Expression, body: List[Statement]) extends Statement
 
@@ -59,12 +55,12 @@ object Parser extends RegexParsers {
 
   def declaration: Parser[Statement] =
     "var" ~> varRef ~ ":" ~ varType ^^ {
-      case VariableRef(vName) ~ _ ~ vType => VariableDeclaration(vName, vType)
+      case VariableRef(vName) ~ _ ~ vType => VariableDeclaration(vName, vType, None)
     }
 
   def declarationWithAssignment: Parser[Statement] =
     "var" ~> varRef ~ ":" ~ varType ~ ":=" ~ expr ^^ {
-      case VariableRef(vName) ~ _ ~ vType ~ _ ~ vValue => VariableDeclarationWithAssignment(vName, vType, vValue)
+      case VariableRef(vName) ~ _ ~ vType ~ _ ~ vValue => VariableDeclaration(vName, vType, Some(vValue))
     }
 
   def assignment: Parser[Statement] = varRef ~ ":=" ~ expr ^^ {
