@@ -2,36 +2,6 @@ package minipl
 
 import scala.util.parsing.combinator._
 
-final case class MiniPLSyntaxError(msg: String) extends Exception
-
-sealed trait Statement
-
-case class VariableDeclaration(name: String, varType: String, value: Option[Expression]) extends Statement
-
-case class VariableAssignment(name: String, value: Expression) extends Statement
-
-case class ForLoop(loopVar: String, start: Expression, end: Expression, body: List[Statement]) extends Statement
-
-case class ReadOp(name: String) extends Statement
-
-case class PrintOp(value: Expression) extends Statement
-
-case class AssertOp(expr: Expression) extends Statement
-
-sealed trait Expression
-
-case class UnaryNot(expr: Expression) extends Expression
-
-case class ArithmeticExpression(leftHand: Expression, op: String, rightHand: Expression) extends Expression
-
-case class BooleanExpression(leftHand: Expression, op: String, rightHand: Expression) extends Expression
-
-case class IntLiteral(value: Int) extends Expression
-
-case class StringLiteral(value: String) extends Expression
-
-case class VariableRef(name: String) extends Expression
-
 object Parser extends RegexParsers {
 
   override def skipWhitespace: Boolean = true
