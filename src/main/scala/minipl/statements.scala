@@ -2,7 +2,7 @@ package minipl
 
 sealed trait Statement
 
-case class VariableDeclaration(name: String, varType: String, value: Option[Expression]) extends Statement
+case class VariableDeclaration(name: String, varType: String, value: Option[VariableAssignment]) extends Statement
 
 case class VariableAssignment(name: String, value: Expression) extends Statement
 

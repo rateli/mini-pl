@@ -30,7 +30,8 @@ object Parser extends RegexParsers {
 
   def declarationWithAssignment: Parser[Statement] =
     "var" ~> varRef ~ ":" ~ varType ~ ":=" ~ expr ^^ {
-      case VariableRef(vName) ~ _ ~ vType ~ _ ~ vValue => VariableDeclaration(vName, vType, Some(vValue))
+      case VariableRef(vName) ~ _ ~ vType ~ _ ~ vValue =>
+        VariableDeclaration(vName, vType, Some(VariableAssignment(vName, vValue)))
     }
 
   def assignment: Parser[Statement] = varRef ~ ":=" ~ expr ^^ {
@@ -75,7 +76,7 @@ object Parser extends RegexParsers {
     }
 
   def forLoop: Parser[Statement] =
-    "for" ~> varRef ~ "in" ~ expr ~ ".." ~ expr ~ "do" ~ rep(statement) <~ "end for" ^^ {
+    "for" ~> varRef ~ "in" ~ expr ~ ".." ~ expr ~ "do" ~ rep1(statement) <~ "end for" ^^ {
       case loopVar ~ _ ~ start ~ _ ~ end ~ _ ~ body => ForLoop(loopVar.name, start, end, body)
     }
 
