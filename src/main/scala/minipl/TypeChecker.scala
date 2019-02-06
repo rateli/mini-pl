@@ -69,37 +69,18 @@ object TypeChecker {
   def visit(expr: Expression, symbolTbl: SymbolTable): Value = expr match {
     case StringLiteral(str) => StringValue(str)
     case IntLiteral(i) => IntValue(i)
-    case VariableRef(_) => BoolValue(true)
+    case v@VariableRef(_) => visit(v, symbolTbl)
     case e@UnaryNot(_) => BoolValue(true)
     case e@ArithmeticExpression(_, _, _) => BoolValue(true)
     case e@BooleanExpression(_, _, _) => BoolValue(true)
   }
+
+  def visit(expr: VariableRef, symbolTbl: SymbolTable): Value = {
+    if (!symbolTbl.contains(expr.name)) throw MiniPLSemanticError("Unknown variable: " + expr.name)
+    val varSymbol = symbolTbl(expr.name)
+    varSymbol.value match {
+      case None => throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
+      case Some(value) => value
+    }
+  }
 }
-
-
-//case class UnaryNot(expr: Expression) extends Expression
-//
-//case class ArithmeticExpression(leftHand: Expression, op: String, rightHand: Expression) extends Expression
-//
-//case class BooleanExpression(leftHand: Expression, op: String, rightHand: Expression) extends Expression
-//
-//case class IntLiteral(value: Int) extends Expression
-//
-//case class StringLiteral(value: String) extends Expression
-//
-//case class VariableRef(name: String) extends Expression
-
-
-/** ***************************************************************************************************************/
-
-//case class VariableDeclaration(name: String, varType: String, value: Option[Expression]) extends Statement
-//
-//case class VariableAssignment(name: String, value: Expression) extends Statement
-//
-//case class ForLoop(loopVar: String, start: Expression, end: Expression, body: List[Statement]) extends Statement
-//
-//case class ReadOp(name: String) extends Statement
-//
-//case class PrintOp(value: Expression) extends Statement
-//
-//case class AssertOp(expr: Expression) extends Statement
