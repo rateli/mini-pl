@@ -39,9 +39,9 @@ object TypeChecker {
     case s@VariableDeclaration(_, _, _) => visit(s, symbolTbl)
     case s@VariableAssignment(_, _) => visit(s, symbolTbl)
     case s@ForLoop(_, _, _, _) => symbolTbl
-    case s@ReadOp(_) => symbolTbl
-    case s@PrintOp(_) => symbolTbl
-    case s@AssertOp(_) => symbolTbl
+    case s@ReadOp(_) => visit(s, symbolTbl)
+    case s@PrintOp(_) => visit(s, symbolTbl)
+    case s@AssertOp(_) => visit(s, symbolTbl)
   }
 
   def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): SymbolTable = {
@@ -66,6 +66,24 @@ object TypeChecker {
     symbolTbl + (stmt.name -> newSymbol)
   }
 
+  def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
+    val readType = visit(stmt.ref, symbolTbl)
+    symbolTbl
+  }
+
+  def visit(stmt: PrintOp, symbolTbl: SymbolTable): SymbolTable = {
+    visit(stmt.value, symbolTbl)
+    symbolTbl
+  }
+
+  def visit(stmt: AssertOp, symbolTbl: SymbolTable): SymbolTable = {
+    val exprValue = visit(stmt.expr, symbolTbl)
+    exprValue match {
+      case BoolValue(_) => symbolTbl
+      case _ => throw MiniPLSemanticError("Cannot assert non-boolean value")
+    }
+  }
+
   def visit(expr: Expression, symbolTbl: SymbolTable): Value = expr match {
     case StringLiteral(str) => StringValue(str)
     case IntLiteral(i) => IntValue(i)
@@ -79,7 +97,8 @@ object TypeChecker {
     if (!symbolTbl.contains(expr.name)) throw MiniPLSemanticError("Unknown variable: " + expr.name)
     val varSymbol = symbolTbl(expr.name)
     varSymbol.value match {
-      case None => throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
+      case None =>
+        throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
       case Some(value) => value
     }
   }

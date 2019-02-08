@@ -80,7 +80,7 @@ object Parser extends RegexParsers {
       case loopVar ~ _ ~ start ~ _ ~ end ~ _ ~ body => ForLoop(loopVar.name, start, end, body)
     }
 
-  def readOp: Parser[Statement] = "read " ~> varRef ^^ (ref => ReadOp(ref.name))
+  def readOp: Parser[Statement] = "read " ~> varRef ^^ (ref => ReadOp(ref))
 
   def printOp: Parser[Statement] = "print " ~> expr ^^ (e => PrintOp(e))
 
