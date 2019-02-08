@@ -4,15 +4,15 @@ import scala.annotation.tailrec
 import scala.util.Try
 
 
-case class VariableSymbol(valueType: String, value: Option[Value])
+case class VariableSymbol(valueType: String, value: Option[Type])
 
-sealed trait Value
+sealed trait Type
 
-case class IntValue(value: Int) extends Value
+case class IntType() extends Type
 
-case class StringValue(value: String) extends Value
+case class StringType() extends Type
 
-case class BoolValue(value: Boolean) extends Value
+case class BoolType() extends Type
 
 
 final case class MiniPLSemanticError(msg: String) extends Exception
@@ -58,16 +58,16 @@ object TypeChecker {
       throw MiniPLSemanticError("Cannot assign to value nonexistent variable: " + stmt.name)
     val variable = symbolTbl(stmt.name)
     val newSymbol = visit(stmt.value, symbolTbl) match {
-      case v@StringValue(_) if variable.valueType == "string" => VariableSymbol("string", Some(v))
-      case v@IntValue(_) if variable.valueType == "int" => VariableSymbol("int", Some(v))
-      case v@BoolValue(_) if variable.valueType == "bool" => VariableSymbol("bool", Some(v))
+      case v@StringType() if variable.valueType == "string" => VariableSymbol("string", Some(v))
+      case v@IntType() if variable.valueType == "int" => VariableSymbol("int", Some(v))
+      case v@BoolType() if variable.valueType == "bool" => VariableSymbol("bool", Some(v))
       case _ => throw MiniPLSemanticError("Tried to assign invalid value type to variable: " + stmt.name)
     }
     symbolTbl + (stmt.name -> newSymbol)
   }
 
   def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
-    val readType = visit(stmt.ref, symbolTbl)
+    visit(stmt.ref, symbolTbl)
     symbolTbl
   }
 
@@ -77,29 +77,67 @@ object TypeChecker {
   }
 
   def visit(stmt: AssertOp, symbolTbl: SymbolTable): SymbolTable = {
-    val exprValue = visit(stmt.expr, symbolTbl)
-    exprValue match {
-      case BoolValue(_) => symbolTbl
+    val result = visit(stmt.expr, symbolTbl)
+    result match {
+      case BoolType() => symbolTbl
       case _ => throw MiniPLSemanticError("Cannot assert non-boolean value")
     }
   }
 
-  def visit(expr: Expression, symbolTbl: SymbolTable): Value = expr match {
-    case StringLiteral(str) => StringValue(str)
-    case IntLiteral(i) => IntValue(i)
+  def visit(expr: Expression, symbolTbl: SymbolTable): Type = expr match {
+    case StringLiteral(_) => StringType()
+    case IntLiteral(_) => IntType()
     case v@VariableRef(_) => visit(v, symbolTbl)
-    case e@UnaryNot(_) => BoolValue(true)
-    case e@ArithmeticExpression(_, _, _) => BoolValue(true)
-    case e@BooleanExpression(_, _, _) => BoolValue(true)
+    case e@UnaryNot(_) => visit(e, symbolTbl)
+    case e@ArithmeticExpression(_, _, _) => visit(e, symbolTbl)
+    case e@BooleanExpression(_, _, _) => visit(e, symbolTbl)
   }
 
-  def visit(expr: VariableRef, symbolTbl: SymbolTable): Value = {
+  def visit(expr: VariableRef, symbolTbl: SymbolTable): Type = {
     if (!symbolTbl.contains(expr.name)) throw MiniPLSemanticError("Unknown variable: " + expr.name)
     val varSymbol = symbolTbl(expr.name)
     varSymbol.value match {
-      case None =>
-        throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
+      case None => throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
       case Some(value) => value
+    }
+  }
+
+  def visit(not: UnaryNot, symbolTable: SymbolTable): Type = {
+    val result = visit(not.expr, symbolTable)
+    result match {
+      case BoolType() => BoolType()
+      case _ => throw MiniPLSemanticError("The ! expression requires boolean expression")
+    }
+  }
+
+  def visit(expr: ArithmeticExpression, symbolTable: SymbolTable): Type = {
+    def isIntegerOp(lhs: Type, rhs: Type): Type =
+      if (!lhs.isInstanceOf[IntType] || rhs != lhs)
+        throw MiniPLSemanticError("Invalid type encountered in arithmetic expression")
+      else IntType()
+
+    val leftHand = visit(expr.leftHand, symbolTable)
+    val rightHand = visit(expr.rightHand, symbolTable)
+    expr.op match {
+      case Plus() =>
+        if (leftHand.isInstanceOf[StringType] || rightHand.isInstanceOf[StringType]) StringType()
+        else isIntegerOp(leftHand, rightHand)
+      case _ => isIntegerOp(leftHand, rightHand)
+    }
+  }
+
+  def visit(expr: BooleanExpression, symbolTable: SymbolTable): Type = {
+    val leftHand = visit(expr.leftHand, symbolTable)
+    val rightHand = visit(expr.rightHand, symbolTable)
+    expr.op match {
+      case And() =>
+        if (!leftHand.isInstanceOf[BoolType] || leftHand != rightHand)
+          throw MiniPLSemanticError("Invalid type encountered in boolean expression")
+        else BoolType()
+      case _ =>
+        if (leftHand != rightHand)
+          throw MiniPLSemanticError("Cannot perform comparison on different types")
+        else BoolType()
     }
   }
 }

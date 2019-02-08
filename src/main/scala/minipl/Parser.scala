@@ -42,13 +42,26 @@ object Parser extends RegexParsers {
 
   def binaryExpr: Parser[Expression] = arithmeticExpr ||| booleanExpr
 
-  def arithmeticExpr: Parser[Expression] = operand ~ """[\+\-\*\/]""".r ~ operand ^^ {
+  def arithmeticExpr: Parser[Expression] = operand ~ arithmeticOperator ~ operand ^^ {
     case lhs ~ op ~ rhs => ArithmeticExpression(lhs, op, rhs)
   }
 
-  def booleanExpr: Parser[Expression] = operand ~ """[\&\=\<]""".r ~ operand ^^ {
+  def arithmeticOperator: Parser[Operator] = """[\+\-\*\/]""".r ^^ {
+      case "+" => Plus()
+      case "-" => Minus()
+      case "/" => Mul()
+      case "*" => Div()
+    }
+
+  def booleanExpr: Parser[Expression] = operand ~ booleanOperator ~ operand ^^ {
     case lhs ~ op ~ rhs => BooleanExpression(lhs, op, rhs)
   }
+
+  def booleanOperator: Parser[Operator] = """[\&\=\<]""".r ^^ {
+      case "&" => And()
+      case "=" => Eq()
+      case "<" => LT()
+    }
 
   def unaryNot: Parser[Expression] = "!" ~> expr ^^ {
     expr => UnaryNot(expr)
