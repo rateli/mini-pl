@@ -4,7 +4,7 @@ import scala.annotation.tailrec
 import scala.util.Try
 
 
-case class VariableSymbol(valueType: String, value: Option[Type])
+case class VariableSymbol(valueType: Type)
 
 sealed trait Type
 
@@ -46,7 +46,13 @@ object TypeChecker {
 
   def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): SymbolTable = {
     if (symbolTbl.contains(stmt.name)) throw MiniPLSemanticError("Cannot redeclare variable: " + stmt.name)
-    val newSymbolTbl = symbolTbl + (stmt.name -> VariableSymbol(stmt.varType, None))
+    val symbolType = stmt.varType match {
+      case "string" => StringType()
+      case "int" => IntType()
+      case "bool" => BoolType()
+    }
+
+    val newSymbolTbl = symbolTbl + (stmt.name -> VariableSymbol(symbolType))
     stmt.value match {
       case None => newSymbolTbl
       case Some(expr) => visit(expr, newSymbolTbl)
@@ -56,19 +62,18 @@ object TypeChecker {
   def visit(stmt: VariableAssignment, symbolTbl: SymbolTable): SymbolTable = {
     if (!symbolTbl.contains(stmt.name))
       throw MiniPLSemanticError("Cannot assign to value nonexistent variable: " + stmt.name)
-    val variable = symbolTbl(stmt.name)
-    val newSymbol = visit(stmt.value, symbolTbl) match {
-      case v@StringType() if variable.valueType == "string" => VariableSymbol("string", Some(v))
-      case v@IntType() if variable.valueType == "int" => VariableSymbol("int", Some(v))
-      case v@BoolType() if variable.valueType == "bool" => VariableSymbol("bool", Some(v))
-      case _ => throw MiniPLSemanticError("Tried to assign invalid value type to variable: " + stmt.name)
-    }
-    symbolTbl + (stmt.name -> newSymbol)
+    val variableType = symbolTbl(stmt.name).valueType
+    val exprType = visit(stmt.value, symbolTbl)
+    if (exprType != variableType) throw MiniPLSemanticError("Tried to assign invalid value type to variable: " + stmt.name)
+    else symbolTbl
   }
 
   def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
-    visit(stmt.ref, symbolTbl)
-    symbolTbl
+    val varType = visit(stmt.ref, symbolTbl)
+    varType match {
+      case BoolType() => throw MiniPLSemanticError("Invalid argument type for read operation")
+      case _ => symbolTbl
+    }
   }
 
   def visit(stmt: PrintOp, symbolTbl: SymbolTable): SymbolTable = {
@@ -95,11 +100,7 @@ object TypeChecker {
 
   def visit(expr: VariableRef, symbolTbl: SymbolTable): Type = {
     if (!symbolTbl.contains(expr.name)) throw MiniPLSemanticError("Unknown variable: " + expr.name)
-    val varSymbol = symbolTbl(expr.name)
-    varSymbol.value match {
-      case None => throw MiniPLSemanticError("Expression contains uninitialized variable: " + expr.name)
-      case Some(value) => value
-    }
+    symbolTbl(expr.name).valueType
   }
 
   def visit(not: UnaryNot, symbolTable: SymbolTable): Type = {
