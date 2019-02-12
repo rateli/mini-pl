@@ -38,7 +38,7 @@ object TypeChecker {
   def visit(stmt: Statement, symbolTbl: SymbolTable): SymbolTable = stmt match {
     case s@VariableDeclaration(_, _, _) => visit(s, symbolTbl)
     case s@VariableAssignment(_, _) => visit(s, symbolTbl)
-    case s@ForLoop(_, _, _, _) => symbolTbl
+    case s@ForLoop(_, _, _, _) => visit(s, symbolTbl)
     case s@ReadOp(_) => visit(s, symbolTbl)
     case s@PrintOp(_) => visit(s, symbolTbl)
     case s@AssertOp(_) => visit(s, symbolTbl)
@@ -66,6 +66,28 @@ object TypeChecker {
     val exprType = visit(stmt.value, symbolTbl)
     if (exprType != variableType) throw MiniPLSemanticError("Tried to assign invalid value type to variable: " + stmt.name)
     else symbolTbl
+  }
+
+  def visit(stmt: ForLoop, symbolTbl: SymbolTable): SymbolTable = {
+    val validLoopVar = visit(stmt.loopVar, symbolTbl) match {
+      case IntType() => true
+      case _ => false
+    }
+    if (!validLoopVar) throw MiniPLSemanticError("Loop variable has to be integer type")
+
+    val validLoopStart = visit(stmt.start, symbolTbl) match {
+      case IntType() => true
+      case _ => false
+    }
+    if (!validLoopStart) throw MiniPLSemanticError("Loop range start expression has to have integer result")
+
+    val validLoopEnd = visit(stmt.end, symbolTbl) match {
+      case IntType() => true
+      case _ => false
+    }
+    if (!validLoopEnd) throw MiniPLSemanticError("Loop range end expression has to have integer result")
+
+    stmt.body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl))
   }
 
   def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {

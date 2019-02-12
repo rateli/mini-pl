@@ -46,7 +46,8 @@ object Parser extends RegexParsers {
     case lhs ~ op ~ rhs => ArithmeticExpression(lhs, op, rhs)
   }
 
-  def arithmeticOperator: Parser[Operator] = """[\+\-\*\/]""".r ^^ {
+  def arithmeticOperator: Parser[Operator] =
+    """[\+\-\*\/]""".r ^^ {
       case "+" => Plus()
       case "-" => Minus()
       case "/" => Mul()
@@ -57,7 +58,8 @@ object Parser extends RegexParsers {
     case lhs ~ op ~ rhs => BooleanExpression(lhs, op, rhs)
   }
 
-  def booleanOperator: Parser[Operator] = """[\&\=\<]""".r ^^ {
+  def booleanOperator: Parser[Operator] =
+    """[\&\=\<]""".r ^^ {
       case "&" => And()
       case "=" => Eq()
       case "<" => LT()
@@ -90,7 +92,7 @@ object Parser extends RegexParsers {
 
   def forLoop: Parser[Statement] =
     "for" ~> varRef ~ "in" ~ expr ~ ".." ~ expr ~ "do" ~ rep1(statement) <~ "end for" ^^ {
-      case loopVar ~ _ ~ start ~ _ ~ end ~ _ ~ body => ForLoop(loopVar.name, start, end, body)
+      case loopVar ~ _ ~ start ~ _ ~ end ~ _ ~ body => ForLoop(loopVar, start, end, body)
     }
 
   def readOp: Parser[Statement] = "read " ~> varRef ^^ (ref => ReadOp(ref))

@@ -6,7 +6,7 @@ case class VariableDeclaration(name: String, varType: String, value: Option[Vari
 
 case class VariableAssignment(name: String, value: Expression) extends Statement
 
-case class ForLoop(loopVar: String, start: Expression, end: Expression, body: List[Statement]) extends Statement
+case class ForLoop(loopVar: VariableRef, start: Expression, end: Expression, body: List[Statement]) extends Statement
 
 case class ReadOp(ref: VariableRef) extends Statement
 
