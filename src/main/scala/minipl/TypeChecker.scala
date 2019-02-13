@@ -3,9 +3,6 @@ package minipl
 import scala.annotation.tailrec
 import scala.util.Try
 
-
-case class VariableSymbol(valueType: Type)
-
 sealed trait Type
 
 case class IntType() extends Type
@@ -19,7 +16,7 @@ final case class MiniPLSemanticError(msg: String) extends Exception
 
 object TypeChecker {
 
-  type SymbolTable = Map[String, VariableSymbol]
+  type SymbolTable = Map[String, Type]
 
   //  def runSemanticAnalysisTODO(program: List[Statement]): Try[SymbolTable] = Try(program)
 
@@ -52,7 +49,7 @@ object TypeChecker {
       case "bool" => BoolType()
     }
 
-    val newSymbolTbl = symbolTbl + (stmt.name -> VariableSymbol(symbolType))
+    val newSymbolTbl = symbolTbl + (stmt.name -> symbolType)
     stmt.value match {
       case None => newSymbolTbl
       case Some(expr) => visit(expr, newSymbolTbl)
@@ -62,7 +59,7 @@ object TypeChecker {
   def visit(stmt: VariableAssignment, symbolTbl: SymbolTable): SymbolTable = {
     if (!symbolTbl.contains(stmt.name))
       throw MiniPLSemanticError("Cannot assign to value nonexistent variable: " + stmt.name)
-    val variableType = symbolTbl(stmt.name).valueType
+    val variableType = symbolTbl(stmt.name)
     val exprType = visit(stmt.value, symbolTbl)
     if (exprType != variableType) throw MiniPLSemanticError("Tried to assign invalid value type to variable: " + stmt.name)
     else symbolTbl
@@ -122,7 +119,7 @@ object TypeChecker {
 
   def visit(expr: VariableRef, symbolTbl: SymbolTable): Type = {
     if (!symbolTbl.contains(expr.name)) throw MiniPLSemanticError("Unknown variable: " + expr.name)
-    symbolTbl(expr.name).valueType
+    symbolTbl(expr.name)
   }
 
   def visit(not: UnaryNot, symbolTable: SymbolTable): Type = {
