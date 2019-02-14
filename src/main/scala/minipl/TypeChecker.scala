@@ -3,17 +3,6 @@ package minipl
 import scala.annotation.tailrec
 import scala.util.Try
 
-sealed trait Type
-
-case class IntType() extends Type
-
-case class StringType() extends Type
-
-case class BoolType() extends Type
-
-
-final case class MiniPLSemanticError(msg: String) extends Exception
-
 object TypeChecker {
 
   type SymbolTable = Map[String, Type]
