@@ -4,15 +4,15 @@ import minipl.TypeChecker.SymbolTable
 
 import scala.annotation.tailrec
 
-sealed trait Value
-
-final case class IntValue(value: Int) extends Value
-
-final case class StringValue(value: String) extends Value
-
-final case class BoolValue(value: Boolean) extends Value
-
 object Interpreter {
+
+  sealed trait Value
+
+  final case class IntValue(value: Int) extends Value
+
+  final case class StringValue(value: String) extends Value
+
+  final case class BoolValue(value: Boolean) extends Value
 
   type ValueTable = Map[String, Value]
 
@@ -56,4 +56,17 @@ object Interpreter {
     case e@ArithmeticExpression(_, _, _) => visit(e, symbolTbl, valueTbl)
     case e@BooleanExpression(_, _, _) => visit(e, symbolTbl, valueTbl)
   }
+
+  def visit(expr: VariableRef, symbolTbl: SymbolTable, valueTbl: ValueTable): Value = {
+    valueTbl.get(expr.name) match {
+      case Some(value) => value
+      case None => throw MiniPLNullPointerError()
+    }
+  }
+
+  def visit(not: UnaryNot, symbolTbl: SymbolTable, valueTbl: ValueTable): Value =
+    visit(not.expr, symbolTbl, valueTbl) match {
+      case BoolValue(result) => BoolValue(!result)
+    }
+
 }
