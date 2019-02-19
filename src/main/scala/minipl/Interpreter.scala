@@ -74,21 +74,30 @@ object Interpreter {
     val rightHand = visit(expr.rightHand, symbolTbl, valueTbl)
     expr.op match {
       case Plus() => plus(leftHand, rightHand)
-      case Minus() => minus(leftHand, rightHand)
-      case Mul() => mul(leftHand, rightHand)
-      case Div() => div(leftHand, rightHand)
+      case op@Minus() => result(leftHand, rightHand, op)
+      case op@Mul() => result(leftHand, rightHand, op)
+      case op@Div() => result(leftHand, rightHand, op)
     }
   }
 
   def plus(lhs: Value, rhs: Value): Value = {
     if(lhs.isInstanceOf[StringType] || rhs.isInstanceOf[StringType]) concat(lhs, rhs)
+    else result(lhs, rhs, Plus())
+  }
+
+  def result(lhs: Value, rhs: Value, op: Operator): IntValue = {
     val leftHand = lhs match {
       case IntValue(value) => value
     }
     val rightHand = rhs match {
       case IntValue(value) => value
     }
-    IntValue(leftHand + rightHand)
+    op match {
+      case Plus() => IntValue(leftHand + rightHand)
+      case Minus() => IntValue(leftHand - rightHand)
+      case Mul() => IntValue(leftHand * rightHand)
+      case Div() => IntValue(leftHand / rightHand)
+    }
   }
 
   def concat(lhs: Value, rhs: Value): StringValue = {
@@ -103,36 +112,6 @@ object Interpreter {
       case BoolValue(value) => value.toString
     }
     StringValue(leftHand + rightHand)
-  }
-
-  def minus(lhs: Value, rhs: Value): IntValue = {
-    val leftHand = lhs match {
-      case IntValue(value) => value
-    }
-    val rightHand = rhs match {
-      case IntValue(value) => value
-    }
-    IntValue(leftHand - rightHand)
-  }
-
-  def mul(lhs: Value, rhs: Value): IntValue = {
-    val leftHand = lhs match {
-      case IntValue(value) => value
-    }
-    val rightHand = rhs match {
-      case IntValue(value) => value
-    }
-    IntValue(leftHand * rightHand)
-  }
-
-  def div(lhs: Value, rhs: Value): IntValue = {
-    val leftHand = lhs match {
-      case IntValue(value) => value
-    }
-    val rightHand = rhs match {
-      case IntValue(value) => value
-    }
-    IntValue(leftHand / rightHand)
   }
 
   def visit(expr: BooleanExpression, symbolTbl: SymbolTable, valueTbl: ValueTable): BoolValue = {
