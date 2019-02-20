@@ -3,6 +3,7 @@ package minipl
 import minipl.TypeChecker.SymbolTable
 
 import scala.annotation.tailrec
+import scala.io.StdIn
 
 object Interpreter {
 
@@ -39,6 +40,31 @@ object Interpreter {
     visit(assertOp.expr, symbolTbl, valueTbl) match {
       case BoolValue(result) => if (!result) throw MiniPLAssertionError() else symbolTbl
     }
+  }
+
+  def visit(stmt: ForLoop, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+    val loopVar = visit(stmt.loopVar, symbolTbl, valueTbl) match {
+      case IntValue(x) => x
+    }
+    val start = visit(stmt.start, symbolTbl, valueTbl) match {
+      case IntValue(x) => x
+    }
+    val end = visit(stmt.end, symbolTbl, valueTbl) match {
+      case IntValue(x) => x
+    }
+
+    stmt.body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl, valueTbl))
+  }
+
+  def visit(stmt: ReadOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+    val input = StdIn.readLine()
+    val inputValue = symbolTbl(stmt.ref.name) match {
+      case IntType() => IntValue(input.toInt)
+      case StringType() => StringValue(input)
+    }
+
+    val newValueTbl = valueTbl + (stmt.ref.name -> inputValue)
+    symbolTbl
   }
 
   def visit(printOp: PrintOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
