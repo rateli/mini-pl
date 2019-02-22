@@ -43,17 +43,22 @@ object Interpreter {
   }
 
   def visit(stmt: ForLoop, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
-    val loopVar = visit(stmt.loopVar, symbolTbl, valueTbl) match {
-      case IntValue(x) => x
-    }
+    val loopVarName = stmt.loopVar.name
     val start = visit(stmt.start, symbolTbl, valueTbl) match {
       case IntValue(x) => x
     }
     val end = visit(stmt.end, symbolTbl, valueTbl) match {
       case IntValue(x) => x
     }
+    runLoop(start, end, stmt.body, symbolTbl, valueTbl)
+  }
 
-    stmt.body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl, valueTbl))
+  def runLoop(loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+    if (loopVar > end) symbolTbl
+    else {
+      val newTbl = body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl, valueTbl))
+      runLoop(loopVar + 1, end, body, newTbl, valueTbl)
+    }
   }
 
   def visit(stmt: ReadOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
@@ -107,7 +112,7 @@ object Interpreter {
   }
 
   def plus(lhs: Value, rhs: Value): Value = {
-    if(lhs.isInstanceOf[StringType] || rhs.isInstanceOf[StringType]) concat(lhs, rhs)
+    if (lhs.isInstanceOf[StringType] || rhs.isInstanceOf[StringType]) concat(lhs, rhs)
     else result(lhs, rhs, Plus())
   }
 
