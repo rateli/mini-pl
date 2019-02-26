@@ -1,20 +1,11 @@
 package minipl
 
-import minipl.TypeChecker.SymbolTable
+
+import minipl.Symbols.SymbolTable
 
 import scala.annotation.tailrec
 
 object Interpreter {
-
-  trait Value
-
-  final case class IntValue(value: Int) extends Value
-
-  final case class StringValue(value: String) extends Value
-
-  final case class BoolValue(value: Boolean) extends Value
-
-  type ValueTable = Map[String, Value]
 
   def runProgram(program: List[Statement], symbolTable: SymbolTable): SymbolTable = {
     run(program, symbolTable)

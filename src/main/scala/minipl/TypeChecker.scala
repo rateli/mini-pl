@@ -1,15 +1,10 @@
 package minipl
 
-import minipl.Interpreter.Value
-
+import minipl.Symbols.SymbolTable
 import scala.annotation.tailrec
 import scala.util.Try
 
-final case class VariableSymbol(varType: Type, value: Option[Value])
-
 object TypeChecker {
-
-  type SymbolTable = Map[String, VariableSymbol]
 
   //  def runSemanticAnalysisTODO(program: List[Statement]): Try[SymbolTable] = Try(program)
 
