@@ -7,7 +7,7 @@ import scala.io.StdIn
 
 object Interpreter {
 
-  sealed trait Value
+  trait Value
 
   final case class IntValue(value: Int) extends Value
 
@@ -18,91 +18,104 @@ object Interpreter {
   type ValueTable = Map[String, Value]
 
   def runProgram(program: List[Statement], symbolTable: SymbolTable): SymbolTable = {
-    run(program, symbolTable, Map.empty)
+    run(program, symbolTable)
   }
 
   @tailrec
-  def run(program: List[Statement], symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = program match {
+  def run(program: List[Statement], symbolTbl: SymbolTable): SymbolTable = program match {
     case Nil => symbolTbl
-    case stmt :: rest => run(rest, visit(stmt, symbolTbl, valueTbl), valueTbl)
+    case stmt :: rest => run(rest, visit(stmt, symbolTbl))
   }
 
-  def visit(stmt: Statement, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = stmt match {
-    case s@VariableDeclaration(_, _, _) => visit(s, symbolTbl, valueTbl)
-    case s@VariableAssignment(_, _) => visit(s, symbolTbl, valueTbl)
-    case s@ForLoop(_, _, _, _) => visit(s, symbolTbl, valueTbl)
-    case s@ReadOp(_) => visit(s, symbolTbl, valueTbl)
-    case s@PrintOp(_) => visit(s, symbolTbl, valueTbl)
-    case s@AssertOp(_) => visit(s, symbolTbl, valueTbl)
+  def visit(stmt: Statement, symbolTbl: SymbolTable): SymbolTable = stmt match {
+    case s@VariableDeclaration(_, _, _) => visit(s, symbolTbl)
+    case s@VariableAssignment(_, _) => visit(s, symbolTbl)
+    case s@ForLoop(_, _, _, _) => visit(s, symbolTbl)
+    case s@ReadOp(_) => visit(s, symbolTbl)
+    case s@PrintOp(_) => visit(s, symbolTbl)
+    case s@AssertOp(_) => visit(s, symbolTbl)
   }
 
-  def visit(assertOp: AssertOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
-    visit(assertOp.expr, symbolTbl, valueTbl) match {
+  def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): SymbolTable = stmt.value match {
+    case None => symbolTbl
+    case Some(expr) => visit(expr, symbolTbl)
+  }
+
+  def visit(stmt: VariableAssignment, symbolTbl: SymbolTable): SymbolTable = {
+    val variable = symbolTbl(stmt.name)
+    val newValue = visit(stmt.value, symbolTbl)
+    symbolTbl + (stmt.name -> VariableSymbol(variable.varType, Some(newValue)))
+  }
+
+  def visit(assertOp: AssertOp, symbolTbl: SymbolTable): SymbolTable = {
+    visit(assertOp.expr, symbolTbl) match {
       case BoolValue(result) => if (!result) throw MiniPLAssertionError() else symbolTbl
     }
   }
 
-  def visit(stmt: ForLoop, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+  def visit(stmt: ForLoop, symbolTbl: SymbolTable): SymbolTable = {
     val loopVarName = stmt.loopVar.name
-    val start = visit(stmt.start, symbolTbl, valueTbl) match {
+    val start = visit(stmt.start, symbolTbl) match {
       case IntValue(x) => x
     }
-    val end = visit(stmt.end, symbolTbl, valueTbl) match {
+    val end = visit(stmt.end, symbolTbl) match {
       case IntValue(x) => x
     }
-    runLoop(start, end, stmt.body, symbolTbl, valueTbl)
+    runLoop(start, end, stmt.body, symbolTbl)
   }
 
-  def runLoop(loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+  def runLoop(loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable): SymbolTable = {
     if (loopVar > end) symbolTbl
     else {
-      val newTbl = body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl, valueTbl))
-      runLoop(loopVar + 1, end, body, newTbl, valueTbl)
+      val newTbl = body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl))
+      runLoop(loopVar + 1, end, body, newTbl)
     }
   }
 
-  def visit(stmt: ReadOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
+  def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
     val input = StdIn.readLine()
-    val inputValue = symbolTbl(stmt.ref.name) match {
-      case IntType() => IntValue(input.toInt)
-      case StringType() => StringValue(input)
+    val inputValue = symbolTbl(stmt.ref.name).varType match {
+      case t@IntType() => VariableSymbol(t, Some(IntValue(input.toInt)))
+      case t@StringType() => VariableSymbol(t, Some(StringValue(input)))
     }
+    symbolTbl + (stmt.ref.name -> inputValue)
+  }
 
-    val newValueTbl = valueTbl + (stmt.ref.name -> inputValue)
+  def visit(printOp: PrintOp, symbolTbl: SymbolTable): SymbolTable = {
+    visit(printOp.value, symbolTbl) match {
+      case StringValue(result) => println(result)
+    }
     symbolTbl
   }
 
-  def visit(printOp: PrintOp, symbolTbl: SymbolTable, valueTbl: ValueTable): SymbolTable = {
-    visit(printOp.value, symbolTbl, valueTbl) match {
-      case StringValue(result) => println(result)
-        symbolTbl
-    }
-  }
-
-  def visit(expr: Expression, symbolTbl: SymbolTable, valueTbl: ValueTable): Value = expr match {
+  def visit(expr: Expression, symbolTbl: SymbolTable): Value = expr match {
     case StringLiteral(value) => StringValue(value)
     case IntLiteral(value) => IntValue(value)
-    case v@VariableRef(_) => visit(v, symbolTbl, valueTbl)
-    case e@UnaryNot(_) => visit(e, symbolTbl, valueTbl)
-    case e@ArithmeticExpression(_, _, _) => visit(e, symbolTbl, valueTbl)
-    case e@BooleanExpression(_, _, _) => visit(e, symbolTbl, valueTbl)
+    case v@VariableRef(_) => visit(v, symbolTbl)
+    case e@UnaryNot(_) => visit(e, symbolTbl)
+    case e@ArithmeticExpression(_, _, _) => visit(e, symbolTbl)
+    case e@BooleanExpression(_, _, _) => visit(e, symbolTbl)
   }
 
-  def visit(expr: VariableRef, symbolTbl: SymbolTable, valueTbl: ValueTable): Value = {
-    valueTbl.get(expr.name) match {
-      case Some(value) => value
-      case None => throw MiniPLNullPointerError()
+  def visit(expr: VariableRef, symbolTbl: SymbolTable): Value = {
+    val z = symbolTbl.get(expr.name)
+
+    if (!symbolTbl.contains(expr.name)) throw MiniPLSyntaxError("foo bar")
+    symbolTbl.get(expr.name) match {
+      case Some(VariableSymbol(_, Some(value))) => value
+      //      case _ => throw MiniPLNullPointerError()
+      case _ => throw MiniPLSyntaxError("bar baz")
     }
   }
 
-  def visit(not: UnaryNot, symbolTbl: SymbolTable, valueTbl: ValueTable): Value =
-    visit(not.expr, symbolTbl, valueTbl) match {
+  def visit(not: UnaryNot, symbolTbl: SymbolTable): Value =
+    visit(not.expr, symbolTbl) match {
       case BoolValue(result) => BoolValue(!result)
     }
 
-  def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable, valueTbl: ValueTable): Value = {
-    val leftHand = visit(expr.leftHand, symbolTbl, valueTbl)
-    val rightHand = visit(expr.rightHand, symbolTbl, valueTbl)
+  def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable): Value = {
+    val leftHand = visit(expr.leftHand, symbolTbl)
+    val rightHand = visit(expr.rightHand, symbolTbl)
     expr.op match {
       case Plus() => plus(leftHand, rightHand)
       case op@Minus() => result(leftHand, rightHand, op)
@@ -145,9 +158,9 @@ object Interpreter {
     StringValue(leftHand + rightHand)
   }
 
-  def visit(expr: BooleanExpression, symbolTbl: SymbolTable, valueTbl: ValueTable): BoolValue = {
-    val leftHand = visit(expr.leftHand, symbolTbl, valueTbl)
-    val rightHand = visit(expr.rightHand, symbolTbl, valueTbl)
+  def visit(expr: BooleanExpression, symbolTbl: SymbolTable): BoolValue = {
+    val leftHand = visit(expr.leftHand, symbolTbl)
+    val rightHand = visit(expr.rightHand, symbolTbl)
     expr.op match {
       case Eq() => BoolValue(leftHand == rightHand)
       case And() => and(leftHand, rightHand)
