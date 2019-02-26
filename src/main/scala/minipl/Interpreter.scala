@@ -3,7 +3,6 @@ package minipl
 import minipl.TypeChecker.SymbolTable
 
 import scala.annotation.tailrec
-import scala.io.StdIn
 
 object Interpreter {
 
@@ -64,6 +63,7 @@ object Interpreter {
     iterate(loopVarName, start, end, stmt.body, symbolTbl)
   }
 
+  @tailrec
   def iterate(loopVarName: String, loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable): SymbolTable = {
     if (loopVar > end) symbolTbl
     else {
@@ -74,7 +74,7 @@ object Interpreter {
   }
 
   def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
-    val input = StdIn.readLine()
+    val input = scala.io.StdIn.readLine()
     val inputValue = symbolTbl(stmt.ref.name).varType match {
       case t@IntType() => VariableSymbol(t, Some(IntValue(input.toInt)))
       case t@StringType() => VariableSymbol(t, Some(StringValue(input)))
