@@ -61,14 +61,15 @@ object Interpreter {
     val end = visit(stmt.end, symbolTbl) match {
       case IntValue(x) => x
     }
-    runLoop(start, end, stmt.body, symbolTbl)
+    iterate(loopVarName, start, end, stmt.body, symbolTbl)
   }
 
-  def runLoop(loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable): SymbolTable = {
+  def iterate(loopVarName: String, loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable): SymbolTable = {
     if (loopVar > end) symbolTbl
     else {
-      val newTbl = body.foldLeft(symbolTbl)((tbl, s) => tbl ++ visit(s, tbl))
-      runLoop(loopVar + 1, end, body, newTbl)
+      val symTbl = symbolTbl + (loopVarName -> VariableSymbol(IntType(), Some(IntValue(loopVar))))
+      val result = body.foldLeft(symTbl)((tbl, s) => tbl ++ visit(s, tbl))
+      iterate(loopVarName, loopVar + 1, end, body, result)
     }
   }
 
@@ -83,7 +84,9 @@ object Interpreter {
 
   def visit(printOp: PrintOp, symbolTbl: SymbolTable): SymbolTable = {
     visit(printOp.value, symbolTbl) match {
-      case StringValue(result) => println(result)
+      case StringValue(v) => println(v)
+      case IntValue(v) => println(v)
+      case BoolValue(v) => println(v)
     }
     symbolTbl
   }
@@ -98,13 +101,9 @@ object Interpreter {
   }
 
   def visit(expr: VariableRef, symbolTbl: SymbolTable): Value = {
-    val z = symbolTbl.get(expr.name)
-
-    if (!symbolTbl.contains(expr.name)) throw MiniPLSyntaxError("foo bar")
     symbolTbl.get(expr.name) match {
       case Some(VariableSymbol(_, Some(value))) => value
-      //      case _ => throw MiniPLNullPointerError()
-      case _ => throw MiniPLSyntaxError("bar baz")
+      case _ => throw MiniPLNullPointerError()
     }
   }
 

@@ -50,8 +50,8 @@ object Parser extends RegexParsers {
     """[\+\-\*\/]""".r ^^ {
       case "+" => Plus()
       case "-" => Minus()
-      case "/" => Mul()
-      case "*" => Div()
+      case "*" => Mul()
+      case "/" => Div()
     }
 
   def booleanExpr: Parser[Expression] = operand ~ booleanOperator ~ operand ^^ {
