@@ -1,4 +1,4 @@
-package minipl
+package minipl.utils
 
 sealed trait Type
 

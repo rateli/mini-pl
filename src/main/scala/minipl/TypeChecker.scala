@@ -1,6 +1,9 @@
 package minipl
 
-import minipl.Symbols.SymbolTable
+import minipl.errors.MiniPLSemanticError
+import minipl.utils.Symbols.SymbolTable
+import minipl.utils._
+
 import scala.annotation.tailrec
 import scala.util.Try
 

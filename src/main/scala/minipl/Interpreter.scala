@@ -1,7 +1,8 @@
 package minipl
 
-
-import minipl.Symbols.SymbolTable
+import minipl.utils.Symbols.SymbolTable
+import minipl.utils._
+import minipl.errors.{MiniPLAssertionError, MiniPLNullPointerError}
 
 import scala.annotation.tailrec
 

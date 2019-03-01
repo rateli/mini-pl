@@ -1,4 +1,4 @@
-package minipl
+package minipl.errors
 
 final case class MiniPLSyntaxError(msg: String) extends Exception
 
