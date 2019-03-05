@@ -2,23 +2,26 @@ package minipl
 
 import minipl.utils.Symbols.SymbolTable
 import minipl.utils._
-import minipl.errors.{MiniPLAssertionError, MiniPLNullPointerError}
+import minipl.errors.{MiniPLAssertionError, MiniPLNullPointerError, MiniPLRuntimeError, MiniPlDivideByZeroError}
 
-import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 object Interpreter {
 
-  def runProgram(program: List[Statement], symbolTable: SymbolTable): SymbolTable = {
-    run(program, symbolTable)
+  def runProgram(program: List[Statement], symbolTbl: SymbolTable): Try[SymbolTable] = {
+    if (program.isEmpty) return Failure(MiniPLRuntimeError("No program to run"))
+    else {
+      program.foldLeft(Success(symbolTbl): Try[SymbolTable])((cur, s) => {
+        if (cur.isFailure) return cur
+        visit(s, cur.get) match {
+          case Success(update) => Success(cur.get ++ update)
+          case Failure(e) => Failure(e)
+        }
+      })
+    }
   }
 
-  @tailrec
-  def run(program: List[Statement], symbolTbl: SymbolTable): SymbolTable = program match {
-    case Nil => symbolTbl
-    case stmt :: rest => run(rest, visit(stmt, symbolTbl))
-  }
-
-  def visit(stmt: Statement, symbolTbl: SymbolTable): SymbolTable = stmt match {
+  def visit(stmt: Statement, symbolTbl: SymbolTable): Try[SymbolTable] = stmt match {
     case s@VariableDeclaration(_, _, _) => visit(s, symbolTbl)
     case s@VariableAssignment(_, _) => visit(s, symbolTbl)
     case s@ForLoop(_, _, _, _) => visit(s, symbolTbl)
@@ -27,115 +30,116 @@ object Interpreter {
     case s@AssertOp(_) => visit(s, symbolTbl)
   }
 
-  def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): SymbolTable = stmt.value match {
-    case None => symbolTbl
+  def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): Try[SymbolTable] = stmt.value match {
+    case None => Success(symbolTbl)
     case Some(expr) => visit(expr, symbolTbl)
   }
 
-  def visit(stmt: VariableAssignment, symbolTbl: SymbolTable): SymbolTable = {
+  def visit(stmt: VariableAssignment, symbolTbl: SymbolTable): Try[SymbolTable] = {
     val variable = symbolTbl(stmt.name)
-    val newValue = visit(stmt.value, symbolTbl)
-    symbolTbl + (stmt.name -> VariableSymbol(variable.varType, Some(newValue)))
+    visit(stmt.value, symbolTbl) match {
+      case Failure(e) => Failure(e)
+      case Success(newVal@_) => Success(symbolTbl + (stmt.name -> VariableSymbol(variable.varType, Some(newVal))))
+    }
   }
 
-  def visit(assertOp: AssertOp, symbolTbl: SymbolTable): SymbolTable = {
+  def visit(assertOp: AssertOp, symbolTbl: SymbolTable): Try[SymbolTable] = {
     visit(assertOp.expr, symbolTbl) match {
-      case BoolValue(result) => if (!result) throw MiniPLAssertionError() else symbolTbl
+      case Success(BoolValue(result)) =>
+        if (!result) Failure(MiniPLAssertionError()) else Success(symbolTbl)
     }
   }
 
-  def visit(stmt: ForLoop, symbolTbl: SymbolTable): SymbolTable = {
-    val loopVarName = stmt.loopVar.name
-    val start = visit(stmt.start, symbolTbl) match {
-      case IntValue(x) => x
+  def visit(stmt: ForLoop, symbolTbl: SymbolTable): Try[SymbolTable] = {
+    val name = stmt.loopVar.name
+    val loopStart = visit(stmt.start, symbolTbl)
+    val loopEnd = visit(stmt.end, symbolTbl)
+
+    (loopStart, loopEnd) match {
+      case (Success(IntValue(start)), Success(IntValue(end))) => iterate(name, start, end, stmt.body, Success(symbolTbl))
+      case _ => Failure(MiniPLRuntimeError("Failed interpreting loop"))
     }
-    val end = visit(stmt.end, symbolTbl) match {
-      case IntValue(x) => x
-    }
-    iterate(loopVarName, start, end, stmt.body, symbolTbl)
   }
 
-  @tailrec
-  def iterate(loopVarName: String, loopVar: Int, end: Int, body: List[Statement], symbolTbl: SymbolTable): SymbolTable = {
-    if (loopVar > end) symbolTbl
+  def iterate(loopVarName: String, loopVar: Int, end: Int, body: List[Statement], symbolTbl: Try[SymbolTable]): Try[SymbolTable] = {
+    if (symbolTbl.isFailure) symbolTbl
+    else if (loopVar > end) symbolTbl
     else {
-      val symTbl = symbolTbl + (loopVarName -> VariableSymbol(IntType(), Some(IntValue(loopVar))))
-      val result = body.foldLeft(symTbl)((tbl, s) => tbl ++ visit(s, tbl))
-      iterate(loopVarName, loopVar + 1, end, body, result)
+      val symTbl = symbolTbl.get + (loopVarName -> VariableSymbol(IntType(), Some(IntValue(loopVar))))
+
+      val res = body.foldLeft(Success(symTbl): Try[SymbolTable])((curST, s) => {
+        if (curST.isFailure) return curST
+        visit(s, curST.get) match {
+          case Success(newST) => Success(curST.get ++ newST)
+          case Failure(e) => Failure(e)
+        }
+      })
+      iterate(loopVarName, loopVar + 1, end, body, res)
     }
   }
 
-  def visit(stmt: ReadOp, symbolTbl: SymbolTable): SymbolTable = {
+  def visit(stmt: ReadOp, symbolTbl: SymbolTable): Try[SymbolTable] = {
     val input = scala.io.StdIn.readLine()
     val inputValue = symbolTbl(stmt.ref.name).varType match {
       case t@IntType() => VariableSymbol(t, Some(IntValue(input.toInt)))
       case t@StringType() => VariableSymbol(t, Some(StringValue(input)))
     }
-    symbolTbl + (stmt.ref.name -> inputValue)
+    Success(symbolTbl + (stmt.ref.name -> inputValue))
   }
 
-  def visit(printOp: PrintOp, symbolTbl: SymbolTable): SymbolTable = {
+  def visit(printOp: PrintOp, symbolTbl: SymbolTable): Try[SymbolTable] = {
     visit(printOp.value, symbolTbl) match {
-      case StringValue(v) => println(v)
-      case IntValue(v) => println(v)
-      case BoolValue(v) => println(v)
+      case Success(StringValue(v)) => println(v)
+      case Success(IntValue(v)) => println(v)
+      case Success(BoolValue(v)) => println(v)
     }
-    symbolTbl
+    Success(symbolTbl)
   }
 
-  def visit(expr: Expression, symbolTbl: SymbolTable): Value = expr match {
-    case StringLiteral(value) => StringValue(value)
-    case IntLiteral(value) => IntValue(value)
+  def visit(expr: Expression, symbolTbl: SymbolTable): Try[Value] = expr match {
+    case StringLiteral(value) => Success(StringValue(value))
+    case IntLiteral(value) => Success(IntValue(value))
     case v@VariableRef(_) => visit(v, symbolTbl)
     case e@UnaryNot(_) => visit(e, symbolTbl)
     case e@ArithmeticExpression(_, _, _) => visit(e, symbolTbl)
     case e@BooleanExpression(_, _, _) => visit(e, symbolTbl)
   }
 
-  def visit(expr: VariableRef, symbolTbl: SymbolTable): Value = {
+  def visit(expr: VariableRef, symbolTbl: SymbolTable): Try[Value] = {
     symbolTbl.get(expr.name) match {
-      case Some(VariableSymbol(_, Some(value))) => value
-      case _ => throw MiniPLNullPointerError()
+      case Some(VariableSymbol(_, Some(value))) => Success(value)
+      case _ => Failure(MiniPLNullPointerError("Referenced null variable: " + expr.name))
     }
   }
 
-  def visit(not: UnaryNot, symbolTbl: SymbolTable): Value =
+  def visit(not: UnaryNot, symbolTbl: SymbolTable): Try[Value] =
     visit(not.expr, symbolTbl) match {
-      case BoolValue(result) => BoolValue(!result)
+      case Success(BoolValue(result)) => Success(BoolValue(!result))
     }
 
-  def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable): Value = {
-    val leftHand = visit(expr.leftHand, symbolTbl)
-    val rightHand = visit(expr.rightHand, symbolTbl)
-    expr.op match {
-      case Plus() => plus(leftHand, rightHand)
-      case op@Minus() => result(leftHand, rightHand, op)
-      case op@Mul() => result(leftHand, rightHand, op)
-      case op@Div() => result(leftHand, rightHand, op)
+  def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable): Try[Value] = {
+    val lhs = visit(expr.leftHand, symbolTbl)
+    val rhs = visit(expr.rightHand, symbolTbl)
+    (lhs, expr.op, rhs) match {
+      case (Failure(e), _, _) => Failure(e)
+      case (_, _, Failure(e)) => Failure(e)
+      case (Success(l@_), op@_, Success(r@_)) => result(l, r, op)
     }
   }
 
-  def plus(lhs: Value, rhs: Value): Value = {
-    if (lhs.isInstanceOf[StringType] || rhs.isInstanceOf[StringType]) concat(lhs, rhs)
-    else result(lhs, rhs, Plus())
-  }
-
-  def result(lhs: Value, rhs: Value, op: Operator): IntValue = {
-    val leftHand = lhs match {
-      case IntValue(value) => value
-    }
-    val rightHand = rhs match {
-      case IntValue(value) => value
-    }
-    op match {
-      case Plus() => IntValue(leftHand + rightHand)
-      case Minus() => IntValue(leftHand - rightHand)
-      case Mul() => IntValue(leftHand * rightHand)
-      case Div() => IntValue(leftHand / rightHand)
+  def result(lhs: Value, rhs: Value, op: Operator): Try[Value] = {
+    (lhs, op, rhs) match {
+      case (StringValue(_), Plus(), _) => concat(lhs, rhs)
+      case (_, Plus(), StringValue(_)) => concat(lhs, rhs)
+      case (IntValue(l@_), Plus(), IntValue(r@_)) => Success(IntValue(l + r))
+      case (IntValue(l@_), Minus(), IntValue(r@_)) => Success(IntValue(l - r))
+      case (IntValue(l@_), Mul(), IntValue(r@_)) => Success(IntValue(l * r))
+      case (IntValue(_), Div(), IntValue(0)) => Failure(MiniPlDivideByZeroError())
+      case (IntValue(l@_), Div(), IntValue(r@_)) => Success(IntValue(l / r))
     }
   }
 
-  def concat(lhs: Value, rhs: Value): StringValue = {
+  def concat(lhs: Value, rhs: Value): Try[StringValue] = {
     val leftHand = lhs match {
       case StringValue(value) => value
       case IntValue(value) => value.toString
@@ -146,37 +150,31 @@ object Interpreter {
       case IntValue(value) => value.toString
       case BoolValue(value) => value.toString
     }
-    StringValue(leftHand + rightHand)
+    Success(StringValue(leftHand + rightHand))
   }
 
-  def visit(expr: BooleanExpression, symbolTbl: SymbolTable): BoolValue = {
+  def visit(expr: BooleanExpression, symbolTbl: SymbolTable): Try[BoolValue] = {
     val leftHand = visit(expr.leftHand, symbolTbl)
     val rightHand = visit(expr.rightHand, symbolTbl)
-    expr.op match {
-      case Eq() => BoolValue(leftHand == rightHand)
-      case And() => and(leftHand, rightHand)
-      case LT() => lessThan(leftHand, rightHand)
+    (leftHand, expr.op, rightHand) match {
+      case (Failure(e), _, _) => Failure(e)
+      case (_, _, Failure(e)) => Failure(e)
+      case (Success(lhs@_), Eq(), Success(rhs@_)) => Success(BoolValue(lhs == rhs))
+      case (Success(lhs@_), And(), Success(rhs@_)) => and(lhs, rhs)
+      case (Success(lhs@_), LT(), Success(rhs@_)) => lessThan(lhs, rhs)
     }
   }
 
-  def and(lhs: Value, rhs: Value): BoolValue = {
-    val leftHand = lhs match {
-      case BoolValue(value) => value
+  def and(lhs: Value, rhs: Value): Try[BoolValue] =
+    (lhs, rhs) match {
+      case (BoolValue(l), BoolValue(r)) => Success(BoolValue(l && r))
     }
-    val rightHand = rhs match {
-      case BoolValue(value) => value
-    }
-    BoolValue(leftHand && rightHand)
-  }
 
-  def lessThan(lhs: Value, rhs: Value): BoolValue = {
-    val leftHand = lhs match {
-      case IntValue(value) => value
+
+  def lessThan(lhs: Value, rhs: Value): Try[BoolValue] = {
+    (lhs, rhs) match {
+      case (IntValue(l), IntValue(r)) => Success(BoolValue(l <= r))
     }
-    val rightHand = rhs match {
-      case IntValue(value) => value
-    }
-    BoolValue(leftHand < rightHand)
   }
 
 }

@@ -9,15 +9,14 @@ import scala.util.{Failure, Success, Try}
 object TypeChecker {
 
   def runSemanticAnalysis(program: List[Statement]): Try[SymbolTable] = {
-    val symbolTable: SymbolTable = Map.empty
-    if (program.isEmpty) Success(symbolTable)
+    val symbolTbl: SymbolTable = Map.empty
+    if (program.isEmpty) Success(symbolTbl)
     else
-      program.foldLeft(Success(symbolTable): Try[SymbolTable])((cur, s) => {
+      program.foldLeft(Success(symbolTbl): Try[SymbolTable])((cur, s) => {
         if (cur.isFailure) return cur
-        val update = visit(s, cur.get)
-        (cur, update) match {
-          case (Success(t), Success(b)) => Success(t ++ b)
-          case _ => update
+        visit(s, cur.get) match {
+          case Success(update) => Success(cur.get ++ update)
+          case Failure(e) => Failure(e)
         }
       })
   }
@@ -32,7 +31,7 @@ object TypeChecker {
   }
 
   def visit(stmt: VariableDeclaration, symbolTbl: SymbolTable): Try[SymbolTable] = {
-    if (symbolTbl.contains(stmt.name)) throw MiniPLSemanticError("Cannot redeclare variable: " + stmt.name)
+    if (symbolTbl.contains(stmt.name)) return Failure(MiniPLSemanticError("Cannot redeclare variable: " + stmt.name))
     val symbolType = stmt.varType match {
       case "string" => VariableSymbol(StringType(), None)
       case "int" => VariableSymbol(IntType(), None)
@@ -79,10 +78,9 @@ object TypeChecker {
 
     stmt.body.foldLeft(Success(symbolTbl): Try[SymbolTable])((cur, s) => {
       if (cur.isFailure) return cur
-      val update = visit(s, cur.get)
-      (cur, update) match {
-        case (Success(t), Success(b)) => Success(t ++ b)
-        case _ => update
+      visit(s, cur.get) match {
+        case Success(update) => Success(cur.get ++ update)
+        case Failure(e) => Failure(e)
       }
     })
   }
@@ -122,17 +120,17 @@ object TypeChecker {
     else Success(symbolTbl(expr.name).varType)
   }
 
-  def visit(not: UnaryNot, symbolTable: SymbolTable): Try[Type] = {
-    val result = visit(not.expr, symbolTable)
+  def visit(not: UnaryNot, symbolTbl: SymbolTable): Try[Type] = {
+    val result = visit(not.expr, symbolTbl)
     result match {
       case Success(BoolType()) => Success(BoolType())
       case _ => Failure(MiniPLSemanticError("The ! expression requires boolean expression"))
     }
   }
 
-  def visit(expr: ArithmeticExpression, symbolTable: SymbolTable): Try[Type] = {
-    val leftHand = visit(expr.leftHand, symbolTable)
-    val rightHand = visit(expr.rightHand, symbolTable)
+  def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable): Try[Type] = {
+    val leftHand = visit(expr.leftHand, symbolTbl)
+    val rightHand = visit(expr.rightHand, symbolTbl)
     (leftHand, rightHand) match {
       case (Success(StringType()), Success(_)) => Success(StringType())
       case (Success(_), Success(StringType())) => Success(StringType())
@@ -141,9 +139,9 @@ object TypeChecker {
     }
   }
 
-  def visit(expr: BooleanExpression, symbolTable: SymbolTable): Try[Type] = {
-    val leftHand = visit(expr.leftHand, symbolTable)
-    val rightHand = visit(expr.rightHand, symbolTable)
+  def visit(expr: BooleanExpression, symbolTbl: SymbolTable): Try[Type] = {
+    val leftHand = visit(expr.leftHand, symbolTbl)
+    val rightHand = visit(expr.rightHand, symbolTbl)
 
     if (expr.op.isInstanceOf[And]) {
       (leftHand, rightHand) match {
