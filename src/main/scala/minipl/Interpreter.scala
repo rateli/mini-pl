@@ -2,14 +2,14 @@ package minipl
 
 import minipl.utils.Symbols.SymbolTable
 import minipl.utils._
-import minipl.errors.{MiniPLAssertionError, MiniPLNullPointerError, MiniPLRuntimeError, MiniPlDivideByZeroError}
+import minipl.errors._
 
 import scala.util.{Failure, Success, Try}
 
 object Interpreter {
 
   def runProgram(program: List[Statement], symbolTbl: SymbolTable): Try[SymbolTable] = {
-    if (program.isEmpty) return Failure(MiniPLRuntimeError("No program to run"))
+    if (program.isEmpty) Failure(MiniPLRuntimeError("No program to run"))
     else {
       program.foldLeft(Success(symbolTbl): Try[SymbolTable])((cur, s) => {
         if (cur.isFailure) return cur
@@ -89,9 +89,9 @@ object Interpreter {
 
   def visit(printOp: PrintOp, symbolTbl: SymbolTable): Try[SymbolTable] = {
     visit(printOp.value, symbolTbl) match {
-      case Success(StringValue(v)) => println(v)
-      case Success(IntValue(v)) => println(v)
-      case Success(BoolValue(v)) => println(v)
+      case Success(StringValue(v)) => print(v)
+      case Success(IntValue(v)) => print(v)
+      case Success(BoolValue(v)) => print(v)
     }
     Success(symbolTbl)
   }

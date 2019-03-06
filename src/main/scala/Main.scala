@@ -1,6 +1,9 @@
 
 import java.nio.file.{Files, Paths}
+
+import minipl.errors._
 import minipl.{Interpreter, Parser, TypeChecker}
+
 import scala.util.{Failure, Success}
 
 object Main {
@@ -17,15 +20,25 @@ object Main {
     val source = scala.io.Source.fromFile(args(0)).mkString
     val program = Parser.parse(source)
 
-    val res = for {
+    val result = for {
       st <- TypeChecker.runSemanticAnalysis(program)
-      result <- Interpreter.runProgram(program, st)
-    } yield result
+      res <- Interpreter.runProgram(program, st)
+    } yield res
 
-    res match {
+    result match {
       case Success(_) => System.exit(0)
-      case Failure(e) => println(e + " \n" + e.getMessage)
+      case Failure(e) => printError(e)
+        System.exit(1)
     }
+  }
+
+  def printError(e: Throwable): Unit = e match {
+    case MiniPLSyntaxError(msg) => println("Syntax error: " + msg)
+    case MiniPLSemanticError(msg) => println("Semantic error: " + msg)
+    case MiniPLRuntimeError(msg) => println("Runtime error: " + msg)
+    case MiniPLAssertionError() => println("Assertion failed")
+    case MiniPlDivideByZeroError() => println("Cannot divide by zero")
+    case _ => println(e.toString)
   }
 
 }
