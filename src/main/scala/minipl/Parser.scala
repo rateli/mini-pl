@@ -2,21 +2,19 @@ package minipl
 
 import minipl.errors.MiniPLSyntaxError
 import minipl.utils._
+
+import scala.util.Try
 import scala.util.parsing.combinator._
 
 object Parser extends RegexParsers {
 
   override def skipWhitespace: Boolean = true
 
-  def parse(source: String) = {
+  def parse(source: String): Try[List[Statement]] = {
     parseAll(minipl, source) match {
-      case Success(matched, _) => matched
-      case Failure(msg, _) =>
-        println(msg)
-        throw new MiniPLSyntaxError(msg)
-      case Error(msg, _) =>
-        println(msg)
-        throw new MiniPLSyntaxError(msg)
+      case Success(matched, _) => scala.util.Success(matched)
+      case Failure(msg, _) => scala.util.Failure(MiniPLSyntaxError(msg))
+      case Error(msg, _) => scala.util.Failure(MiniPLSyntaxError(msg))
     }
   }
 

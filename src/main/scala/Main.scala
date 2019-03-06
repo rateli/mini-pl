@@ -18,11 +18,11 @@ object Main {
       System.exit(1)
     }
     val source = scala.io.Source.fromFile(args(0)).mkString
-    val program = Parser.parse(source)
 
     val result = for {
-      st <- TypeChecker.runSemanticAnalysis(program)
-      res <- Interpreter.runProgram(program, st)
+      prog <- Parser.parse(source)
+      symTbl <- TypeChecker.runSemanticAnalysis(prog)
+      res <- Interpreter.runProgram(prog, symTbl)
     } yield res
 
     result match {
