@@ -3,7 +3,7 @@ package minipl
 import minipl.utils._
 import org.scalatest.FunSuite
 
-import scala.util.{Success}
+import scala.util.Success
 
 class ParserSuite extends FunSuite {
 
@@ -109,6 +109,53 @@ class ParserSuite extends FunSuite {
     assert(Parser.parse(src2) == Success(parseResult2))
   }
 
+  test("Parsing for loops") {
+    val src =
+      """
+        for i in 1..5+1 do
+          print i;
+        end for;
+      """
+    val body = List(PrintOp(VariableRef("i")))
+    val parseResult = List(ForLoop(
+      VariableRef("i"),
+      IntLiteral(1),
+      ArithmeticExpression(IntLiteral(5), Plus(), IntLiteral(1)),
+      body
+    ))
+    assert(Parser.parse(src) == Success(parseResult))
+  }
+
+  test("Expressions require parentheses around subexpressions") {
+    val src1 = "print 5 + 4 * 5"
+    assert(Parser.parse(src1).isFailure)
+
+    val src2 = """!!(1 < 3)"""
+    assert(Parser.parse(src2).isFailure)
+  }
+
+  test("Parsing statements with invalid keywords or typos fails") {
+    val src1 = """vat i : string"""
+    assert(Parser.parse(src1).isFailure)
+
+    val src2 = """var i : itn"""
+    assert(Parser.parse(src2).isFailure)
+
+    val src3 = """var i : int =: 4"""
+    assert(Parser.parse(src3).isFailure)
+
+    val src4 = """readd x"""
+    assert(Parser.parse(src4).isFailure)
+
+    val src5 =
+      """
+        while i in 1..5+1 do
+          print i;
+        end for
+      """
+    assert(Parser.parse(src5).isFailure)
+  }
+
   test("Parsing statements without trailing semicolon fails") {
     val src1 = """var i : string"""
     assert(Parser.parse(src1).isFailure)
@@ -121,6 +168,14 @@ class ParserSuite extends FunSuite {
 
     val src4 = """read x"""
     assert(Parser.parse(src4).isFailure)
+
+    val src5 =
+      """
+        for i in 1..5+1 do
+          print i;
+        end for
+      """
+    assert(Parser.parse(src5).isFailure)
   }
 
 }
