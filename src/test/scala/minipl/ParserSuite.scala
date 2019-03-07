@@ -23,11 +23,11 @@ class ParserSuite extends FunSuite {
 
   test("Parsing variable assignment") {
     val src1 = """i := "foo";"""
-    val parseResult1 = List(VariableAssignment("i", StringLiteral("foobar")))
+    val parseResult1 = List(VariableAssignment("i", StringLiteral("foo")))
     assert(Parser.parse(src1) == Success(parseResult1))
 
     val src2 = "j := 4;"
-    val parseResult2 = List(VariableAssignment("i", IntLiteral(4)))
+    val parseResult2 = List(VariableAssignment("j", IntLiteral(4)))
     assert(Parser.parse(src2) == Success(parseResult2))
   }
 

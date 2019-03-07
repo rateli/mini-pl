@@ -87,7 +87,7 @@ object Parser extends RegexParsers {
 
   def stringLiteral: Parser[StringLiteral] =
     """\".*\"""".r ^^ {
-      value => StringLiteral(value)
+      value => StringLiteral(value.substring(1, value.length()-1))
     }
 
   def forLoop: Parser[Statement] =
