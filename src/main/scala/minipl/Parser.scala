@@ -11,10 +11,11 @@ object Parser extends RegexParsers {
   override def skipWhitespace: Boolean = true
 
   def parse(source: String): Try[List[Statement]] = {
-    parseAll(minipl, source) match {
-      case Success(matched, _) => scala.util.Success(matched)
-      case Failure(msg, _) => scala.util.Failure(MiniPLSyntaxError(msg))
-      case Error(msg, _) => scala.util.Failure(MiniPLSyntaxError(msg))
+    Try(parseAll(minipl, source)) match {
+      case scala.util.Success(Success(matched, _)) => scala.util.Success(matched)
+      case scala.util.Success(Failure(msg, _)) => scala.util.Failure(MiniPLSyntaxError(msg))
+      case scala.util.Success(Error(msg, _)) => scala.util.Failure(MiniPLSyntaxError(msg))
+      case scala.util.Failure(e) => scala.util.Failure(MiniPLSyntaxError(e.getMessage))
     }
   }
 

@@ -131,10 +131,10 @@ object TypeChecker {
   def visit(expr: ArithmeticExpression, symbolTbl: SymbolTable): Try[Type] = {
     val leftHand = visit(expr.leftHand, symbolTbl)
     val rightHand = visit(expr.rightHand, symbolTbl)
-    (leftHand, rightHand) match {
-      case (Success(StringType()), Success(_)) => Success(StringType())
-      case (Success(_), Success(StringType())) => Success(StringType())
-      case (Success(IntType()), Success(IntType())) => Success(IntType())
+    (leftHand, expr.op, rightHand) match {
+      case (Success(StringType()), Plus(), Success(_)) => Success(StringType())
+      case (Success(_), Plus(), Success(StringType())) => Success(StringType())
+      case (Success(IntType()), _, Success(IntType())) => Success(IntType())
       case _ => Failure(MiniPLSemanticError("Invalid type encountered in arithmetic expression"))
     }
   }

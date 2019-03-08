@@ -20,6 +20,11 @@ class ParserSuite extends FunSuite {
     assert(Parser.parse(src2) == Success(parseResult2))
   }
 
+  test("Parsing variable declaration with invalid type") {
+    val src = "var i : foo;"
+    assert(Parser.parse(src).isFailure)
+  }
+
   test("Parsing variable assignment") {
     val src1 = """i := "foo";"""
     val parseResult1 = List(VariableAssignment("i", StringLiteral("foo")))
