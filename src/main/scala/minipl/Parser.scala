@@ -88,7 +88,15 @@ object Parser extends RegexParsers {
 
   def stringLiteral: Parser[StringLiteral] =
     "\"" ~> "[^\"]*".r <~ "\"" ^^ {
-      value => StringLiteral(value)
+      value =>
+        StringLiteral(
+          value.replace("\\n", "\n")
+            .replace("\\r", "\r")
+            .replace("\\t", "\t")
+            .replace("\\f", "\f")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+        )
     }
 
   def forLoop: Parser[Statement] =
